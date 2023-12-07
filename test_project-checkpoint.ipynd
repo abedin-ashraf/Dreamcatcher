@@ -1,0 +1,289 @@
+{
+ "cells": [
+  {
+   "cell_type": "code",
+   "execution_count": 1,
+   "id": "c97cc49e",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Num GPUs Available:  1\n"
+     ]
+    }
+   ],
+   "source": [
+    "import tensorflow as tf\n",
+    "from tensorflow import keras\n",
+    "from tensorflow.keras import layers\n",
+    "from tqdm import tqdm\n",
+    "import numpy as np\n",
+    "import matplotlib.pyplot as plt\n",
+    "\n",
+    "physical_devices = tf.config.experimental.list_physical_devices('GPU')      # Enabling GPU\n",
+    "tf.config.experimental.set_memory_growth(physical_devices[0], True)\n",
+    "print(\"Num GPUs Available: \", len(tf.config.list_physical_devices('GPU')))  # Checking if GPU is available or not"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 2,
+   "id": "a32f6c78",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Found 202599 files belonging to 1 classes.\n"
+     ]
+    }
+   ],
+   "source": [
+    "dataset = keras.preprocessing.image_dataset_from_directory(\n",
+    "    directory=\"C:\\\\Users\\\\saika\\\\Documents\\\\Jupyter Files\\\\Project\\\\archive\\\\img_align_celeba\\\\img_align_celeba\",\n",
+    "\tlabel_mode=None, image_size=(64, 64), batch_size=32,\n",
+    "    shuffle=True\n",
+    ").map(lambda x: x/255.0)"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 3,
+   "id": "c8fedf34",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "discriminator = keras.Sequential(\n",
+    "    [\n",
+    "        tf.keras.layers.Input(shape=(64, 64, 3)),\n",
+    "        tf.keras.layers.Conv2D(64, kernel_size=4, strides=2, padding=\"same\"),\n",
+    "        tf.keras.layers.LeakyReLU(0.2),\n",
+    "        tf.keras.layers.Conv2D(128, kernel_size=4, strides=2, padding=\"same\"),\n",
+    "        tf.keras.layers.LeakyReLU(0.2),\n",
+    "        tf.keras.layers.Conv2D(128, kernel_size=4, strides=2, padding=\"same\"),\n",
+    "        tf.keras.layers.LeakyReLU(0.2),\n",
+    "        tf.keras.layers.Flatten(),\n",
+    "        tf.keras.layers.Dropout(0.2),\n",
+    "        tf.keras.layers.Dense(1, activation=\"sigmoid\"),\n",
+    "    ]\n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 4,
+   "id": "acf933e8",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "latent_dim = 128\n",
+    "generator = keras.Sequential(\n",
+    "    [\n",
+    "        tf.keras.layers.Input(shape=(latent_dim,)),\n",
+    "        tf.keras.layers.Dense(8*8*128),\n",
+    "        tf.keras.layers.Reshape((8, 8, 128)),\n",
+    "        tf.keras.layers.Conv2DTranspose(128, kernel_size=4, strides=2, padding=\"same\"),\n",
+    "        tf.keras.layers.LeakyReLU(0.2),\n",
+    "        tf.keras.layers.Conv2DTranspose(256, kernel_size=4, strides=2, padding=\"same\"),\n",
+    "        tf.keras.layers.LeakyReLU(0.2),\n",
+    "        tf.keras.layers.Conv2DTranspose(512, kernel_size=4, strides=2, padding=\"same\"),\n",
+    "        tf.keras.layers.LeakyReLU(0.2),\n",
+    "        tf.keras.layers.Conv2D(3, kernel_size=5, padding=\"same\", activation=\"sigmoid\"),\n",
+    "    ]                \n",
+    ")"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 5,
+   "id": "65b935bf",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Model: \"sequential\"\n",
+      "_________________________________________________________________\n",
+      " Layer (type)                Output Shape              Param #   \n",
+      "=================================================================\n",
+      " conv2d (Conv2D)             (None, 32, 32, 64)        3136      \n",
+      "                                                                 \n",
+      " leaky_re_lu (LeakyReLU)     (None, 32, 32, 64)        0         \n",
+      "                                                                 \n",
+      " conv2d_1 (Conv2D)           (None, 16, 16, 128)       131200    \n",
+      "                                                                 \n",
+      " leaky_re_lu_1 (LeakyReLU)   (None, 16, 16, 128)       0         \n",
+      "                                                                 \n",
+      " conv2d_2 (Conv2D)           (None, 8, 8, 128)         262272    \n",
+      "                                                                 \n",
+      " leaky_re_lu_2 (LeakyReLU)   (None, 8, 8, 128)         0         \n",
+      "                                                                 \n",
+      " flatten (Flatten)           (None, 8192)              0         \n",
+      "                                                                 \n",
+      " dropout (Dropout)           (None, 8192)              0         \n",
+      "                                                                 \n",
+      " dense (Dense)               (None, 1)                 8193      \n",
+      "                                                                 \n",
+      "=================================================================\n",
+      "Total params: 404,801\n",
+      "Trainable params: 404,801\n",
+      "Non-trainable params: 0\n",
+      "_________________________________________________________________\n"
+     ]
+    }
+   ],
+   "source": [
+    "discriminator.summary()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 6,
+   "id": "52e87842",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stdout",
+     "output_type": "stream",
+     "text": [
+      "Model: \"sequential_1\"\n",
+      "_________________________________________________________________\n",
+      " Layer (type)                Output Shape              Param #   \n",
+      "=================================================================\n",
+      " dense_1 (Dense)             (None, 8192)              1056768   \n",
+      "                                                                 \n",
+      " reshape (Reshape)           (None, 8, 8, 128)         0         \n",
+      "                                                                 \n",
+      " conv2d_transpose (Conv2DTra  (None, 16, 16, 128)      262272    \n",
+      " nspose)                                                         \n",
+      "                                                                 \n",
+      " leaky_re_lu_3 (LeakyReLU)   (None, 16, 16, 128)       0         \n",
+      "                                                                 \n",
+      " conv2d_transpose_1 (Conv2DT  (None, 32, 32, 256)      524544    \n",
+      " ranspose)                                                       \n",
+      "                                                                 \n",
+      " leaky_re_lu_4 (LeakyReLU)   (None, 32, 32, 256)       0         \n",
+      "                                                                 \n",
+      " conv2d_transpose_2 (Conv2DT  (None, 64, 64, 512)      2097664   \n",
+      " ranspose)                                                       \n",
+      "                                                                 \n",
+      " leaky_re_lu_5 (LeakyReLU)   (None, 64, 64, 512)       0         \n",
+      "                                                                 \n",
+      " conv2d_3 (Conv2D)           (None, 64, 64, 3)         38403     \n",
+      "                                                                 \n",
+      "=================================================================\n",
+      "Total params: 3,979,651\n",
+      "Trainable params: 3,979,651\n",
+      "Non-trainable params: 0\n",
+      "_________________________________________________________________\n"
+     ]
+    }
+   ],
+   "source": [
+    "generator.summary()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": 7,
+   "id": "5d20186a",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "opt_gen = keras.optimizers.Adam(learning_rate=0.0001)\n",
+    "opt_disc = keras.optimizers.Adam(learning_rate=0.0001)\n",
+    "loss_fn = keras.losses.BinaryCrossentropy()"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "9b4c0c99",
+   "metadata": {},
+   "outputs": [
+    {
+     "name": "stderr",
+     "output_type": "stream",
+     "text": [
+      "\r",
+      "  0%|          | 0/6332 [00:00<?, ?it/s]"
+     ]
+    }
+   ],
+   "source": [
+    "for epoch in range(1):\n",
+    "    for index, real in enumerate(tqdm(dataset)):\n",
+    "        batch_size = real.shape[0]\n",
+    "        random_latent_vectors = tf.random.normal(shape=(batch_size, latent_dim))\n",
+    "        fake = generator(random_latent_vectors)\n",
+    "\n",
+    "        if index % 100 == 0:\n",
+    "            img = keras.preprocessing.image.array_to_img(fake[0])\n",
+    "            img.save(\"C:\\\\Users\\\\saika\\\\Documents\\\\Jupyter Files\\\\Project\\\\Generated_images\\\\gen_img_%03d_%d.png\" % (epoch, index))\n",
+    "\n",
+    "        ### Train Discriminator: max log(D(x)) + log(1 - D(G(z)))\n",
+    "        with tf.GradientTape() as disc_tape:\n",
+    "            loss_disc_real = loss_fn(tf.ones((batch_size, 1)), discriminator(real))\n",
+    "            loss_disc_fake = loss_fn(tf.zeros((batch_size, 1)), discriminator(fake))\n",
+    "            loss_disc = (loss_disc_real + loss_disc_fake)/2\n",
+    "\n",
+    "        grads = disc_tape.gradient(loss_disc, discriminator.trainable_weights)\n",
+    "        opt_disc.apply_gradients(\n",
+    "            zip(grads, discriminator.trainable_weights)\n",
+    "        )\n",
+    "\n",
+    "        ### Train Generator: min log(1 - D(G(z))) <-> max log(D(G(z))\n",
+    "        with tf.GradientTape() as gen_tape:\n",
+    "            fake = generator(random_latent_vectors)\n",
+    "            output = discriminator(fake)\n",
+    "            loss_gen = loss_fn(tf.ones(batch_size, 1), output)\n",
+    "\n",
+    "        grads = gen_tape.gradient(loss_gen, generator.trainable_weights)\n",
+    "        opt_gen.apply_gradients(\n",
+    "            zip(grads, generator.trainable_weights)\n",
+    "        )"
+   ]
+  },
+  {
+   "cell_type": "code",
+   "execution_count": null,
+   "id": "5a98bcc8",
+   "metadata": {},
+   "outputs": [],
+   "source": [
+    "a_loss_history = np.array(loss_disc_real)\n",
+    "d_loss_history = np.array(loss_disc_fake)\n",
+    "plt.plot()\n",
+    "plt.plot(a_loss_history[:,1], label = \"GAN loss\")\n",
+    "plt.plot(d_loss_history[:,1], label = \"Discriminator loss\")\n",
+    "plt.legend()\n",
+    "plt.show()"
+   ]
+  }
+ ],
+ "metadata": {
+  "kernelspec": {
+   "display_name": "Python 3 (ipykernel)",
+   "language": "python",
+   "name": "python3"
+  },
+  "language_info": {
+   "codemirror_mode": {
+    "name": "ipython",
+    "version": 3
+   },
+   "file_extension": ".py",
+   "mimetype": "text/x-python",
+   "name": "python",
+   "nbconvert_exporter": "python",
+   "pygments_lexer": "ipython3",
+   "version": "3.9.13"
+  }
+ },
+ "nbformat": 4,
+ "nbformat_minor": 5
+}
