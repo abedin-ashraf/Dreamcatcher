@@ -4,8 +4,6 @@
 
 This repository contains the implementation and findings of a group project conducted during the Fall 2023 semester as part of the CS505-01 Data Mining course at Southeast Missouri State University. The project focuses on exploring the application of Deep Convolutional Generative Adversarial Networks (DCGANs) for unsupervised learning.
 
-**GitHub Link:** [DCGAN-CS505](https://github.com/abedin-ashraf/DCGAN-CS505)
-
 ## Group Members
 
 - Mohammed Nurul Abedin Ashraf
