@@ -1,6 +1,6 @@
 ## Project Name: Learning from the Unseen: Exploring Deep Convolutional GANs for Image Representation
 
-# DCGAN-CS505: Unsupervised Generative Adversarial Networks using Deep Convolutional Networks
+## Method: Unsupervised Generative Adversarial Networks using Deep Convolutional Networks
 
 ## Project Overview
 
